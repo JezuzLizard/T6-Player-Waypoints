@@ -176,7 +176,7 @@ HEALTH_INDICATOR_UPDATE( health_indicator )
     health_indicator.hidewheninmenu = 1;
     while ( true )
     {
-        if ( isDefined( self.e_afterlife_corpse ) || !maps/mp/zombies/_zm_utility::is_player_valid( self ) )
+        if ( isDefined( self.e_afterlife_corpse ) || !is_player_valid( self ) )
         {
             if ( health_indicator.alpha != 0 )
             {
@@ -263,3 +263,64 @@ set_color_from_health_fraction( frac )
 20%-1% red descrease green to 0
 0% invisible alpha = 0
 */
+
+is_player_valid( player, checkignoremeflag, ignore_laststand_players )
+{
+    if ( !isDefined( player ) )
+    {
+        return 0;
+    }
+    if ( !isalive( player ) )
+    {
+        return 0;
+    }
+    if ( !isplayer( player ) )
+    {
+        return 0;
+    }
+    if ( isDefined( player.is_zombie ) && player.is_zombie == 1 )
+    {
+        return 0;
+    }
+    if ( player.sessionstate == "spectator" )
+    {
+        return 0;
+    }
+    if ( player.sessionstate == "intermission" )
+    {
+        return 0;
+    }
+    if ( is_true( self.intermission ) )
+    {
+        return 0;
+    }
+    if ( !is_true( ignore_laststand_players ) )
+    {
+        if ( player player_is_in_laststand() )
+        {
+            return 0;
+        }
+    }
+    if ( is_true( checkignoremeflag ) && player.ignoreme )
+    {
+        return 0;
+    }
+    if ( isDefined( level.is_player_valid_override ) )
+    {
+        return [[ level.is_player_valid_override ]]( player );
+    }
+    return 1;
+}
+
+player_is_in_laststand()
+{
+    if ( !is_true( self.no_revive_trigger ) && isDefined( self.revivetrigger ) )
+    {
+        return 1;
+    }
+    if ( is_true( self.laststand ) )
+    {
+        return 1;
+    }
+    return 0;
+}
