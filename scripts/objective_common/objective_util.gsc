@@ -1,4 +1,8 @@
 
+#include maps/mp/gametypes_zm/_hud;
+#include maps/mp/gametypes_zm/_hud_message;
+#include maps/mp/gametypes_zm/_hud_util;
+#include maps/mp/zombies/_zm_utility;
 #include maps/mp/_utility;
 #include common_scripts/utility;
 
@@ -41,7 +45,23 @@ OBJ_DESTROY_THREAD( name, duration )
 	arrayRemoveIndex( level.custom_objectives, name );
 }
 
-OBJ_ADD_ENT( ent, type, offset, visibility_data )
+OBJ_GET_REF( name, ent, team_or_ent )
+{
+	if ( isDefined( level.custom_objectives[ name ].entities[ ent.name ] ) )
+	{
+		if ( isDefined( team_or_ent ) && isString( team_or_ent ) )
+		{
+			return level.custom_objectives[ name ].entities[ ent.name ].team_elems[ team_or_ent ];
+		}
+		else if ( isDefined( team_or_ent ) )
+		{
+			return level.custom_objectives[ name ].entities[ ent.name ].player_elems[ team_or_ent.name ];
+		}
+	}
+	return undefined;
+}
+
+OBJ_ADD_ENT( ent, type, offset, visibility_data, update_func )
 {
 	if ( !isDefined( self.entities ) )
 	{
@@ -52,51 +72,63 @@ OBJ_ADD_ENT( ent, type, offset, visibility_data )
 		self.entities[ ent.name ] = spawnStruct();
 	}
 	self.entities[ ent.name ].target_ent = ent;
+	self.entities[ ent.name ].team_elems = [];
+	self.entities[ ent.name ].player_elems = [];
 	if ( isDefined( visibility_data[ "team_list" ] ) )
 	{
-		self.entities[ ent.name ].team_elems = [];
 		foreach ( team in visibility_data[ "team_list" ] )
 		{
 			if ( team == "all" )
 			{
-				team = undefined;
+				elem_team = undefined;
+			}
+			else 
+			{
+				elem_team = team;
 			}
 			switch ( type )
 			{
 				case "text":
-					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, team );
+					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, elem_team );
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_TEXT();
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_PREVENT_OVERFLOW();
 					break;
 				case "bar":
-					self.entities[ ent.name ].team_elems[ team ] = createserverbar( ( 1, 1, 1 ), 1, 1, undefined, team );
+					self.entities[ ent.name ].team_elems[ team ] = OBJ_CREATE_SERVER_BAR( elem_team );
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_BAR();
 					break;
 				case "icon":
-					self.entities[ ent.name ].team_elems[ team ] = createservericon( undefined, 1, 1, team );
+					self.entities[ ent.name ].team_elems[ team ] = createservericon( undefined, 1, 1, elem_team );
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_ICON();
 					break;
 				case "timer":
-					self.entities[ ent.name ].team_elems[ team ] = createservertimer( "default", 4, team );
+					self.entities[ ent.name ].team_elems[ team ] = createservertimer( "default", 4, elem_team );
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_TIMER();
 					break;
 				case "value":
-					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, team );
+					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, elem_team );
 					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_VALUE();
 					break;
 			}
-			self.entities[ ent.name ].team_elems[ team ].archived = 1;
-			self.entities[ ent.name ].team_elems[ team ].x = ent.origin[ 0 ] + offset[ 0 ];
-			self.entities[ ent.name ].team_elems[ team ].y = ent.origin[ 1 ] + offset[ 1 ];
-			self.entities[ ent.name ].team_elems[ team ].z = ent.origin[ 2 ] + offset[ 2 ];
+			if ( isDefined( offset ) )
+			{
+				self.entities[ ent.name ].team_elems[ team ].x = ent.origin[ 0 ] + offset[ 0 ];
+				self.entities[ ent.name ].team_elems[ team ].y = ent.origin[ 1 ] + offset[ 1 ];
+				self.entities[ ent.name ].team_elems[ team ].z = ent.origin[ 2 ] + offset[ 2 ];
+			}
+			else 
+			{
+				self.entities[ ent.name ].team_elems[ team ].x = ent.origin[ 0 ];
+				self.entities[ ent.name ].team_elems[ team ].y = ent.origin[ 1 ];
+				self.entities[ ent.name ].team_elems[ team ].z = ent.origin[ 2 ];
+			}
 			self.entities[ ent.name ].team_elems[ team ].alpha = 1;
-			self.entities[ ent.name ].team_elems[ team ] setWayPoint( 0, "", true, true );
-			self.entities[ ent.name ].team_elems[ team ] setTargetEnt( ent );
+			//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_LOCATION( ent );
+			//self.entities[ ent.name ].team_elems[ team ] setTargetEnt( ent );
 		}
 	}
-	else if ( isDefined( visibility_data[ "player_list" ) )
+	else if ( isDefined( visibility_data[ "player_list" ] ) )
 	{
-		self.entities[ ent.name ].player_elems = [];
 		foreach ( player in visibility_data[ "player_list" ] )
 		{
 			switch ( type )
@@ -107,7 +139,7 @@ OBJ_ADD_ENT( ent, type, offset, visibility_data )
 					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_PREVENT_OVERFLOW();
 					break;
 				case "bar":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createbar( ( 1, 1, 1 ), 1, 1 );
+					self.entities[ ent.name ].player_elems[ player.name ] = player createbar( ( 1, 1, 1 ), 64, 16 );
 					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_BAR();
 					break;
 				case "icon":
@@ -123,13 +155,21 @@ OBJ_ADD_ENT( ent, type, offset, visibility_data )
 					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_VALUE();
 					break;
 			}
-			self.entities[ ent.name ].player_elems[ player.name ].archived = 1;
-			self.entities[ ent.name ].player_elems[ player.name ].x = ent.origin[ 0 ] + offset[ 0 ];
-			self.entities[ ent.name ].player_elems[ player.name ].y = ent.origin[ 1 ] + offset[ 1 ];
-			self.entities[ ent.name ].player_elems[ player.name ].z = ent.origin[ 2 ] + offset[ 2 ];
+			if ( isDefined( offset ) )
+			{
+				self.entities[ ent.name ].player_elems[ player.name ].x = ent.origin[ 0 ] + offset[ 0 ];
+				self.entities[ ent.name ].player_elems[ player.name ].y = ent.origin[ 1 ] + offset[ 1 ];
+				self.entities[ ent.name ].player_elems[ player.name ].z = ent.origin[ 2 ] + offset[ 2 ];
+			}
+			else 
+			{
+				self.entities[ ent.name ].player_elems[ player.name ].x = ent.origin[ 0 ];
+				self.entities[ ent.name ].player_elems[ player.name ].y = ent.origin[ 1 ];
+				self.entities[ ent.name ].player_elems[ player.name ].z = ent.origin[ 2 ];
+			}
 			self.entities[ ent.name ].player_elems[ player.name ].alpha = 1;
-			self.entities[ ent.name ].player_elems[ player.name ] setWayPoint( 0, "", true, true );
-			self.entities[ ent.name ].player_elems[ player.name ] setTargetEnt( ent );
+			//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_LOCATION( ent );
+			//self.entities[ ent.name ].player_elems[ player.name ] setTargetEnt( ent );
 		}
 	}
 	self thread OBJ_ENT_DEATH( ent );
@@ -170,8 +210,8 @@ on_player_connect()
 	while ( true )
 	{
 		level waittill( "connected", player );
-		level.custom_objectives[ "overhead_health_bar" ] OBJ_ADD_ENT( player, "bar", ( 0, 0, 54 ), "all" );
-		level.custom_objectives[ "overhead_health_value" ] OBJ_ADD_ENT( player, "value", ( 0, 0, 64 ), "all" );
+		// level.custom_objectives[ "overhead_health_bar" ] OBJ_ADD_ENT( player, "bar", ( 0, 0, 54 ), "all" );
+		// level.custom_objectives[ "overhead_health_value" ] OBJ_ADD_ENT( player, "value", ( 0, 0, 64 ), "all" );
 	}
 }
 
@@ -186,4 +226,52 @@ on_player_disconnect()
 			OBJ_REMOVE( key );
 		}
 	}
+}
+
+OBJ_UPDATE_LOCATION( ent, offset )
+{
+	if ( !isDefined( offset ) )
+	{
+		offset = ( 0, 0, 54 );
+	}
+	while ( true )
+	{
+		self.x = ent.origin[ 0 ] + offset[ 0 ];
+		self.y = ent.origin[ 1 ] + offset[ 1 ];
+		self.z = ent.origin[ 2 ] + offset[ 2 ];
+		wait 0.05;
+	}
+}
+
+OBJ_SPAWN_ENT_ON_ENT( ent, tag, offset )
+{
+	if ( !isDefined( offset ) )
+	{
+		offset = ( 0, 0, 0 );
+	}
+	elem_ent = spawn( "script_model", ent.origin + offset );
+	elem_ent setModel( "script_origin" );
+	elem_ent linkTo( ent );
+	return elem_ent;
+}
+
+OBJ_CREATE_SERVER_BAR( team ) //checked changed to match cerberus output
+{
+	if ( isDefined( team ) )
+	{
+		barelembg = newteamhudelem( team );
+	}
+	else
+	{
+		barelembg = newhudelem();
+	}
+	barelembg.elemtype = "icon";
+	barelembg.x = 0;
+	barelembg.y = 0;
+	barelembg.xoffset = 0;
+	barelembg.yoffset = 0;
+	barelembg.alpha = 1;
+	barelembg.hidden = 0;
+	barelembg.frac = 0;
+	return barelembg;
 }
