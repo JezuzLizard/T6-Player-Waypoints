@@ -31,10 +31,10 @@ on_player_connect()
 
 on_player_disconnect()
 {
-    hud_keys = getArrayKeys( level.custom_objectives );
     for(;;)
     {
         self waittill( "disconnect" );
+        hud_keys = getArrayKeys( level.custom_objectives );
         foreach ( key in hud_keys )
         {
             player_elem_keys = getArrayKeys( level.custom_objectives[ key ].entities );
