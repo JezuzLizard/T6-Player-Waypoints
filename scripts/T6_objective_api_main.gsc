@@ -37,11 +37,7 @@ on_player_disconnect()
         hud_keys = getArrayKeys( level.custom_objectives );
         foreach ( key in hud_keys )
         {
-            player_elem_keys = getArrayKeys( level.custom_objectives[ key ].entities );
-            for ( j = 0; j < player_elem_keys.size; j++ )
-            {
-                level.custom_objectives[ key ].entities[ player_elem_keys[ j ] ] notify( "destroy_hud_ent" );
-            }
+            level.custom_objectives[ key ].entities[ self.name ] notify( "destroy_hud_ent" );
         }
     }
 }
