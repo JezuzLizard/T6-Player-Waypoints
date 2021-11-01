@@ -4,7 +4,7 @@
 #include maps/mp/_utility;
 #include common_scripts/utility;
 
-main()
+init()
 {
     level.health_indicators_thresholds = [];
     level.health_indicators_thresholds[ "damaged" ] = 0.6;
@@ -20,40 +20,27 @@ main()
 
 on_player_connect()
 {
-    while ( true )
+    for(;;)
     {
         level waittill( "connected", player );
         waittillframeend;
         level.custom_objectives[ "overhead_health_indicator" ] HEALTH_INDICATOR_ADD_ENT( player, "all" );
+        player thread on_player_disconnect();
     }
 }
 
 on_player_disconnect()
 {
     hud_keys = getArrayKeys( level.custom_objectives );
-    while ( true )
+    for(;;)
     {
-        level waittill( "disconnect" );
-        players = level.players;
+        self waittill( "disconnect" );
         foreach ( key in hud_keys )
         {
             player_elem_keys = getArrayKeys( level.custom_objectives[ key ].entities );
             for ( j = 0; j < player_elem_keys.size; j++ )
             {
-                still_ingame = false;
-                for ( i = 0; i < players.size; i++ )
-                {
-                    if ( player_elem_keys[ j ] == players[ i ].name )
-                    {
-                        still_ingame = true;
-                        arrayRemoveIndex( players, i );
-                        break;
-                    }
-                }
-                if ( !still_ingame )
-                {
-                    level.custom_objectives[ key ].entities[ player_elem_keys[ j ] ] notify( "destroy_hud_ent" );
-                }
+                level.custom_objectives[ key ].entities[ player_elem_keys[ j ] ] notify( "destroy_hud_ent" );
             }
         }
     }
