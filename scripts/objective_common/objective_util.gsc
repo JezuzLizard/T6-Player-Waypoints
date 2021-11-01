@@ -45,133 +45,36 @@ OBJ_DESTROY_THREAD( name, duration )
 	arrayRemoveIndex( level.custom_objectives, name );
 }
 
-OBJ_GET_REF( name, ent, team_or_ent )
+OBJ_GET_REF( name, ent )
 {
 	if ( isDefined( level.custom_objectives[ name ].entities[ ent.name ] ) )
 	{
-		if ( isDefined( team_or_ent ) && isString( team_or_ent ) )
-		{
-			return level.custom_objectives[ name ].entities[ ent.name ].team_elems[ team_or_ent ];
-		}
-		else if ( isDefined( team_or_ent ) )
-		{
-			return level.custom_objectives[ name ].entities[ ent.name ].player_elems[ team_or_ent.name ];
-		}
+		return level.custom_objectives[ name ].entities[ ent.name ];
 	}
 	return undefined;
 }
 
-OBJ_ADD_ENT( ent, type, offset, visibility_data, update_func )
+HEALTH_INDICATOR_ADD_ENT( ent, team )
 {
 	if ( !isDefined( self.entities ) )
 	{
 		self.entities = [];
 	}
-	if ( !isDefined( self.entities[ ent.name ] ) )
+	if ( team == "all" )
 	{
-		self.entities[ ent.name ] = spawnStruct();
+		elem_team = undefined;
 	}
-	self.entities[ ent.name ].target_ent = ent;
-	self.entities[ ent.name ].team_elems = [];
-	self.entities[ ent.name ].player_elems = [];
-	if ( isDefined( visibility_data[ "team_list" ] ) )
+	else 
 	{
-		foreach ( team in visibility_data[ "team_list" ] )
-		{
-			if ( team == "all" )
-			{
-				elem_team = undefined;
-			}
-			else 
-			{
-				elem_team = team;
-			}
-			switch ( type )
-			{
-				case "text":
-					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, elem_team );
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_TEXT();
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_PREVENT_OVERFLOW();
-					break;
-				case "bar":
-					self.entities[ ent.name ].team_elems[ team ] = OBJ_CREATE_SERVER_BAR( elem_team );
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_BAR();
-					break;
-				case "icon":
-					self.entities[ ent.name ].team_elems[ team ] = createservericon( undefined, 1, 1, elem_team );
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_ICON();
-					break;
-				case "timer":
-					self.entities[ ent.name ].team_elems[ team ] = createservertimer( "default", 4, elem_team );
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_TIMER();
-					break;
-				case "value":
-					self.entities[ ent.name ].team_elems[ team ] = createserverfontstring( "default", 4, elem_team );
-					//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_VALUE();
-					break;
-			}
-			if ( isDefined( offset ) )
-			{
-				self.entities[ ent.name ].team_elems[ team ].x = ent.origin[ 0 ] + offset[ 0 ];
-				self.entities[ ent.name ].team_elems[ team ].y = ent.origin[ 1 ] + offset[ 1 ];
-				self.entities[ ent.name ].team_elems[ team ].z = ent.origin[ 2 ] + offset[ 2 ];
-			}
-			else 
-			{
-				self.entities[ ent.name ].team_elems[ team ].x = ent.origin[ 0 ];
-				self.entities[ ent.name ].team_elems[ team ].y = ent.origin[ 1 ];
-				self.entities[ ent.name ].team_elems[ team ].z = ent.origin[ 2 ];
-			}
-			self.entities[ ent.name ].team_elems[ team ].alpha = 1;
-			//self.entities[ ent.name ].team_elems[ team ] thread OBJ_UPDATE_LOCATION( ent );
-			//self.entities[ ent.name ].team_elems[ team ] setTargetEnt( ent );
-		}
+		elem_team = team;
 	}
-	else if ( isDefined( visibility_data[ "player_list" ] ) )
-	{
-		foreach ( player in visibility_data[ "player_list" ] )
-		{
-			switch ( type )
-			{
-				case "text":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createfontstring( "default", 4 );
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_TEXT();
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_PREVENT_OVERFLOW();
-					break;
-				case "bar":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createbar( ( 1, 1, 1 ), 64, 16 );
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_BAR();
-					break;
-				case "icon":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createicon( undefined, 1, 1 );
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_ICON();
-					break;
-				case "timer":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createclienttimer( "default", 4 );
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_TIMER();
-					break;
-				case "value":
-					self.entities[ ent.name ].player_elems[ player.name ] = player createfontstring( "default", 4 );
-					//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_VALUE();
-					break;
-			}
-			if ( isDefined( offset ) )
-			{
-				self.entities[ ent.name ].player_elems[ player.name ].x = ent.origin[ 0 ] + offset[ 0 ];
-				self.entities[ ent.name ].player_elems[ player.name ].y = ent.origin[ 1 ] + offset[ 1 ];
-				self.entities[ ent.name ].player_elems[ player.name ].z = ent.origin[ 2 ] + offset[ 2 ];
-			}
-			else 
-			{
-				self.entities[ ent.name ].player_elems[ player.name ].x = ent.origin[ 0 ];
-				self.entities[ ent.name ].player_elems[ player.name ].y = ent.origin[ 1 ];
-				self.entities[ ent.name ].player_elems[ player.name ].z = ent.origin[ 2 ];
-			}
-			self.entities[ ent.name ].player_elems[ player.name ].alpha = 1;
-			//self.entities[ ent.name ].player_elems[ player.name ] thread OBJ_UPDATE_LOCATION( ent );
-			//self.entities[ ent.name ].player_elems[ player.name ] setTargetEnt( ent );
-		}
-	}
+	self.entities[ ent.name ] = OBJ_CREATE_SERVER_HEALTH_INDICATOR( elem_team );
+	self.entities[ ent.name ].target_ent = OBJ_SPAWN_ENT_ON_ENT( ent, level.health_indicator_offset );
+	self.entities[ ent.name ].color = ( 0, 1, 0 );
+	self.entities[ ent.name ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
+	self.entities[ ent.name ] setWayPoint( false );
+	self.entities[ ent.name ] setTargetEnt( self.entities[ ent.name ].target_ent );
+	ent thread HEALTH_INDICATOR_UPDATE( self.entities[ ent.name ] );
 	self thread OBJ_ENT_DEATH( ent );
 }
 
@@ -187,63 +90,16 @@ OBJ_REMOVE_ENT( ent )
 OBJ_ENT_DEATH( ent )
 {
 	self.entities[ ent.name ] waittill( "destroy_hud_ent" );
-	if ( isDefined( self.entities[ ent.name ].player_elems ) )
+	self.entities[ ent.name ].target_ent unLink();
+	self.entities[ ent.name ].target_ent delete();
+	if ( isDefined( self.entities[ ent.name ] ) )
 	{
-		foreach ( player_name in getArrayKeys( self.entities[ ent.name ].player_elems ) )
-		{
-			self.entities[ ent.name ].player_elems[ player_name ] destroy();
-		}
+		self.entities[ ent.name ] destroy();
 	}
-	else if ( isDefined( self.entities[ ent.name ].team_elems ) )
-	{
-		foreach ( team in getArrayKeys( self.entities[ ent.name ].team_elems ) )
-		{
-			self.entities[ ent.name ].player_elems[ team ] destroy();
-		}
-	}
-	self.entities[ ent.name ].target_ent = undefined;
 	arrayRemoveIndex( self.entities, ent.name );
 }
 
-on_player_connect()
-{
-	while ( true )
-	{
-		level waittill( "connected", player );
-		// level.custom_objectives[ "overhead_health_bar" ] OBJ_ADD_ENT( player, "bar", ( 0, 0, 54 ), "all" );
-		// level.custom_objectives[ "overhead_health_value" ] OBJ_ADD_ENT( player, "value", ( 0, 0, 64 ), "all" );
-	}
-}
-
-on_player_disconnect()
-{
-	hud_keys = getArrayKeys( level.custom_objectives );
-	while ( true )
-	{
-		level waittill( "disconnect", player );
-		foreach ( key in hud_keys )
-		{
-			OBJ_REMOVE( key );
-		}
-	}
-}
-
-OBJ_UPDATE_LOCATION( ent, offset )
-{
-	if ( !isDefined( offset ) )
-	{
-		offset = ( 0, 0, 54 );
-	}
-	while ( true )
-	{
-		self.x = ent.origin[ 0 ] + offset[ 0 ];
-		self.y = ent.origin[ 1 ] + offset[ 1 ];
-		self.z = ent.origin[ 2 ] + offset[ 2 ];
-		wait 0.05;
-	}
-}
-
-OBJ_SPAWN_ENT_ON_ENT( ent, tag, offset )
+OBJ_SPAWN_ENT_ON_ENT( ent, offset )
 {
 	if ( !isDefined( offset ) )
 	{
@@ -255,7 +111,7 @@ OBJ_SPAWN_ENT_ON_ENT( ent, tag, offset )
 	return elem_ent;
 }
 
-OBJ_CREATE_SERVER_BAR( team ) //checked changed to match cerberus output
+OBJ_CREATE_SERVER_HEALTH_INDICATOR( team )
 {
 	if ( isDefined( team ) )
 	{
@@ -272,6 +128,100 @@ OBJ_CREATE_SERVER_BAR( team ) //checked changed to match cerberus output
 	barelembg.yoffset = 0;
 	barelembg.alpha = 1;
 	barelembg.hidden = 0;
-	barelembg.frac = 0;
 	return barelembg;
 }
+
+HEALTH_INDICATOR_UPDATE( health_indicator )
+{
+	self endon( "disconnect" );
+	flag_wait( "initial_blackscreen_passed" );
+	health_indicator.hidewheninmenu = 1;
+	while ( true )
+	{
+		if ( isDefined( self.e_afterlife_corpse ) || !is_player_valid( self ) )
+		{
+			if ( health_indicator.alpha != 0 )
+			{
+				health_indicator.alpha = 0;
+			}
+			wait 0.05;
+			continue;
+		}
+		if ( health_indicator.alpha != 1 )
+		{
+			health_indicator.alpha = 1;
+		}
+		health_indicator set_color_from_health_fraction( float( ( self.health / self.maxhealth ) ) );
+		wait 0.05;
+	}
+}
+
+//1.0 == 0%, 0.61 == 100%
+
+set_color_from_health_fraction( frac )
+{
+	// if ( frac < 1.0 && frac > 0.6 )
+	// {
+	// 	ratio_red_up = 1.0 - frac;
+	// 	ratio_green_down = 3.20;
+	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
+	// 	green_frac = ceil( ( ratio_green_down * 100 ) / 320 );
+	// 	self.color = ( red_frac, green_frac, 0 );
+	// }
+	// if ( frac < 1.0 && frac > 0.2 )
+	// {
+	// 	ratio_red_up = 1.0 - frac;
+	// 	ratio_green_down = abs( frac - 1.0 );
+	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
+	// 	green_frac = ceil( ( ratio_green_down * 100 ) / 320 );
+	// 	self.color = ( red_frac, green_frac, 0 );
+	// }
+	// else if ( frac < 0.2 && frac > 0.0 )
+	// {
+	// 	ratio_red_up = abs( frac - 1.0 );
+	// 	ratio_green_down = 0;
+	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
+	// 	green_frac = ratio_green_down;
+	// 	self.color = ( red_frac, green_frac, 0 );
+	// }
+	if ( frac < 1.0 && frac > level.health_indicators_thresholds[ "damaged" ] )
+	{
+		red_frac = ceil( ( 255/320 ) * 100 ) / 100;
+		green_frac = ceil( ( 255/320 ) * 100 ) / 100;
+		self.color = ( red_frac, green_frac, 0 );
+	}
+	else if ( frac < 1.0 && frac > level.health_indicators_thresholds[ "hurt" ] )
+	{
+		green_frac = ceil( ( 100/320 ) * 100 ) / 100;
+		self.color = ( 1, green_frac, 0 );
+	}
+	else if ( frac < 1.0 && frac >= level.health_indicators_thresholds[ "near_death" ] )
+	{
+		red_frac = ceil( ( 255/320 ) * 100 ) / 100;
+		self.color = ( red_frac, 0, 0 );
+	}
+	else if ( frac <= level.health_indicators_thresholds[ "dead" ] )
+	{
+		self.alpha = 0;
+	}
+	else 
+	{
+		green_frac = ceil( ( 255 / 320 ) * 100 ) / 100;
+		self.color = ( 0, green_frac, 0 );
+	}
+}
+
+/*
+
+( 0, 0, 255/255 ) == blue
+( 0, 255/255, 0 ) == green
+(255/255, 255/255, 0 ) == yellow
+( 255/255, 100/255, 0 ) == orange
+( 255/255, 0, 0 ) == red
+
+100% == pure green
+99%-60% yellow increase red
+59%-21% orange decrease green
+20%-1% red descrease green to 0
+0% invisible alpha = 0
+*/
