@@ -34,10 +34,28 @@ on_player_disconnect()
 	hud_keys = getArrayKeys( level.custom_objectives );
 	while ( true )
 	{
-		level waittill( "disconnect", player );
+		level waittill( "disconnect" );
+		players = level.players;
 		foreach ( key in hud_keys )
 		{
-			level.custom_objectives[ key ] OBJ_REMOVE_ENT( player );
+			player_elem_keys = getArrayKeys( level.custom_objectives[ key ].entities );
+			for ( j = 0; j < player_elem_keys.size; j++ )
+			{
+				still_ingame = false;
+				for ( i = 0; i < players.size; i++ )
+				{
+					if ( player_elem_keys[ j ] == players[ i ].name )
+					{
+						still_ingame = true;
+						arrayRemoveIndex( players, i );
+						break;
+					}
+				}
+				if ( !still_ingame )
+				{
+					level.custom_objectives[ key ].entities[ player_elem_keys[ j ] ] notify( "destroy_hud_ent" );
+				}
+			}
 		}
 	}
 }
@@ -116,16 +134,14 @@ HEALTH_INDICATOR_ADD_ENT( ent, team )
 
 OBJ_REMOVE_ENT( ent )
 {
-	if ( !isDefined( self.entities[ ent.name ] ) )
-	{
-		return;
-	}
 	self.entities[ ent.name ] notify( "destroy_hud_ent" );
 }
 
 OBJ_ENT_DEATH( ent )
 {
 	self.entities[ ent.name ] waittill( "destroy_hud_ent" );
+	self.entities[ ent.name ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
+	self.entities[ ent.name ] clearTargetEnt();
 	self.entities[ ent.name ].target_ent unLink();
 	self.entities[ ent.name ].target_ent delete();
 	if ( isDefined( self.entities[ ent.name ] ) )
