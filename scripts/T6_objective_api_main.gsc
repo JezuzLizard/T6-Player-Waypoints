@@ -40,7 +40,6 @@ on_player_disconnect()
 		{
 			index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
 			level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
-			print( guid );
 		}
 	}
 }
