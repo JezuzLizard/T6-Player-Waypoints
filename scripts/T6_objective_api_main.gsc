@@ -33,12 +33,14 @@ on_player_disconnect()
 {
 	for(;;)
 	{
+		guid = self getGUID();
 		self waittill( "disconnect" );
 		hud_keys = getArrayKeys( level.custom_objectives );
-		guid_str = self getGUID() + "";
 		foreach ( key in hud_keys )
 		{
-			level.custom_objectives[ key ].players[ guid_str ] notify( "destroy_hud_ent" );
+			index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
+			level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
+			print( guid );
 		}
 	}
 }
@@ -76,23 +78,31 @@ OBJ_DESTROY_THREAD( name, duration )
 	}
 	foreach ( player in self.players )
 	{
-		self OBJ_REMOVE_PLAYER( player );
+		self OBJ_REMOVE_PLAYER( player getGUID() );
 	}
 	self.players = undefined;
-	arrayRemoveIndex( level.custom_objectives, name );
+	arrayRemoveIndex( level.custom_objectives, name, true );
 }
 
-OBJ_GET_REF( name, player )
+OBJ_FIND_ENT_INDEX( guid )
 {
-	guid_str = player getGUID() + "";
-	if ( isDefined( level.custom_objectives[ name ].players[ guid_str ] ) )
+	index = 0;
+	foreach ( elem in self.players )
 	{
-		return level.custom_objectives[ name ].players[ guid_str ];
+		if ( elem.guid == guid )
+		{
+			return index;
+		}
+		index++;
 	}
-	return undefined;
 }
 
-HEALTH_INDICATOR_ADD_player( player, team )
+OBJ_ALLOCATE_ENT( player )
+{
+	return self.players.size;
+}
+
+HEALTH_INDICATOR_ADD_PLAYER( player, team )
 {
 	if ( !isDefined( self.players ) )
 	{
@@ -106,36 +116,35 @@ HEALTH_INDICATOR_ADD_player( player, team )
 	{
 		elem_team = team;
 	}
-	guid_str = player getGUID() + "";
-	self.players[ guid_str ] = OBJ_CREATE_SERVER_HEALTH_INDICATOR( elem_team );
-	self.players[ guid_str ].target_ent = OBJ_SPAWN_ENT_ON_ENT( ent, level.health_indicator_offset );
-	self.players[ guid_str ].color = ( 0, 1, 0 );
-	self.players[ guid_str ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
-	self.players[ guid_str ] setWayPoint( false );
-	self.players[ guid_str ] setTargetEnt( self.players[ guid_str ].target_ent );
-	player thread HEALTH_INDICATOR_UPDATE( self.players[ guid_str ] );
-	self thread OBJ_ENT_DEATH( player );
+	index = self OBJ_ALLOCATE_ENT( player );
+	self.players[ index ] = OBJ_CREATE_SERVER_HEALTH_INDICATOR( elem_team );
+	self.players[ index ].guid = player getGUID();
+	self.players[ index ].target_ent = OBJ_SPAWN_ENT_ON_ENT( player, level.health_indicator_offset );
+	self.players[ index ].color = ( 0, 1, 0 );
+	self.players[ index ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
+	self.players[ index ] setWayPoint( false );
+	self.players[ index ] setTargetEnt( self.players[ index ].target_ent );
+	player thread HEALTH_INDICATOR_UPDATE( self.players[ index ] );
+	self thread OBJ_ENT_DEATH( player getGUID() );
 }
 
-OBJ_REMOVE_player( player )
+OBJ_REMOVE_PLAYER( guid )
 {
-	guid_str = player getGUID() + "";
-	self.players[ guid_str ] notify( "destroy_hud_ent" );
+	index = self OBJ_FIND_ENT_INDEX( guid );
+	self.players[ index ] notify( "destroy_hud_ent" );
 }
 
-OBJ_ENT_DEATH( player )
+OBJ_ENT_DEATH( guid )
 {
-	guid_str = player getGUID() + "";
-	self.players[ guid_str ] waittill( "destroy_hud_ent" );
-	self.players[ guid_str ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
-	self.players[ guid_str ] clearTargetEnt();
-	self.players[ guid_str ].target_ent unLink();
-	self.players[ guid_str ].target_ent delete();
-	if ( isDefined( self.players[ guid_str ] ) )
-	{
-		self.players[ guid_str ] destroy();
-	}
-	arrayRemoveIndex( self.players, guid_str );
+	index = self OBJ_FIND_ENT_INDEX( guid );
+	self.players[ index ] waittill( "destroy_hud_ent" );
+	self.players[ index ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
+	self.players[ index ] clearTargetEnt();
+	self.players[ index ].guid = undefined;
+	self.players[ index ].target_ent unLink();
+	self.players[ index ].target_ent delete();
+	self.players[ index ] destroy();
+	arrayRemoveIndex( self.players, index );
 }
 
 OBJ_SPAWN_ENT_ON_ENT( ent, offset )
@@ -199,30 +208,6 @@ HEALTH_INDICATOR_UPDATE( health_indicator )
 
 set_color_from_health_fraction( frac )
 {
-	// if ( frac < 1.0 && frac > 0.6 )
-	// {
-	// 	ratio_red_up = 1.0 - frac;
-	// 	ratio_green_down = 3.20;
-	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
-	// 	green_frac = ceil( ( ratio_green_down * 100 ) / 320 );
-	// 	self.color = ( red_frac, green_frac, 0 );
-	// }
-	// if ( frac < 1.0 && frac > 0.2 )
-	// {
-	// 	ratio_red_up = 1.0 - frac;
-	// 	ratio_green_down = abs( frac - 1.0 );
-	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
-	// 	green_frac = ceil( ( ratio_green_down * 100 ) / 320 );
-	// 	self.color = ( red_frac, green_frac, 0 );
-	// }
-	// else if ( frac < 0.2 && frac > 0.0 )
-	// {
-	// 	ratio_red_up = abs( frac - 1.0 );
-	// 	ratio_green_down = 0;
-	// 	red_frac = ceil( ( ratio_red_up * 100 ) / 320 );
-	// 	green_frac = ratio_green_down;
-	// 	self.color = ( red_frac, green_frac, 0 );
-	// }
 	if ( frac < 1.0 && frac > level.health_indicators_thresholds[ "damaged" ] )
 	{
 		red_frac = ceil( ( 255/320 ) * 100 ) / 100;
@@ -249,21 +234,6 @@ set_color_from_health_fraction( frac )
 		self.color = ( 0, green_frac, 0 );
 	}
 }
-
-/*
-
-( 0, 0, 255/255 ) == blue
-( 0, 255/255, 0 ) == green
-(255/255, 255/255, 0 ) == yellow
-( 255/255, 100/255, 0 ) == orange
-( 255/255, 0, 0 ) == red
-
-100% == pure green
-99%-60% yellow increase red
-59%-21% orange decrease green
-20%-1% red descrease green to 0
-0% invisible alpha = 0
-*/
 
 is_player_valid( player, checkignoremeflag, ignore_laststand_players )
 {
