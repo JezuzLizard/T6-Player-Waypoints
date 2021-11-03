@@ -20,6 +20,7 @@ init()
 
 on_player_connect()
 {
+	level endon("end_game");
 	for(;;)
 	{
 		level waittill( "connected", player );
@@ -31,6 +32,7 @@ on_player_connect()
 
 on_player_disconnect()
 {
+	level endon("end_game");
 	for(;;)
 	{
 		guid = self getGUID();
@@ -41,6 +43,7 @@ on_player_disconnect()
 			index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
 			level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
 		}
+		break; // disconnect is only ran once, we need to break the thread
 	}
 }
 
@@ -181,6 +184,8 @@ OBJ_CREATE_SERVER_HEALTH_INDICATOR( team )
 HEALTH_INDICATOR_UPDATE( health_indicator )
 {
 	self endon( "disconnect" );
+	level endon("end_game");
+	
 	flag_wait( "initial_blackscreen_passed" );
 	health_indicator.hidewheninmenu = 1;
 	while ( true )
