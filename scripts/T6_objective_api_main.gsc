@@ -15,11 +15,12 @@ init()
 	level.health_indicator_offset = ( 0, 0, 80 );
 	OBJ_ADD_NEW( "overhead_health_indicator", -1 );
 	level thread on_player_connect();
-	level thread on_player_disconnect();
 }
 
 on_player_connect()
 {
+	level endon("end_game");
+	level endon("game_ended");
 	for(;;)
 	{
 		level waittill( "connected", player );
@@ -31,16 +32,13 @@ on_player_connect()
 
 on_player_disconnect()
 {
-	for(;;)
+	guid = self getGUID();
+	self waittill( "disconnect" );
+	hud_keys = getArrayKeys( level.custom_objectives );
+	foreach ( key in hud_keys )
 	{
-		guid = self getGUID();
-		self waittill( "disconnect" );
-		hud_keys = getArrayKeys( level.custom_objectives );
-		foreach ( key in hud_keys )
-		{
-			index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
-			level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
-		}
+		index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
+		level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
 	}
 }
 
@@ -181,7 +179,11 @@ OBJ_CREATE_SERVER_HEALTH_INDICATOR( team )
 HEALTH_INDICATOR_UPDATE( health_indicator )
 {
 	self endon( "disconnect" );
-	flag_wait( "initial_blackscreen_passed" );
+	level endon("end_game");
+	level endon("game_ended");
+	
+	if (flag_exists("initial_blackscreen_passed") && !flag("initial_blackscreen_passed"))
+		flag_wait( "initial_blackscreen_passed" );
 	health_indicator.hidewheninmenu = 1;
 	while ( true )
 	{
