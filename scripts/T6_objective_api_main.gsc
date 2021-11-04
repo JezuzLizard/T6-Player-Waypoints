@@ -15,6 +15,7 @@ init()
 	level.health_indicator_offset = ( 0, 0, 80 );
 	OBJ_ADD_NEW( "overhead_health_indicator", -1 );
 	level thread on_player_connect();
+	level thread destroy_all_hud_on_end_game();
 }
 
 on_player_connect()
@@ -39,6 +40,16 @@ on_player_disconnect()
 	{
 		index = level.custom_objectives[ key ] OBJ_FIND_ENT_INDEX( guid );
 		level.custom_objectives[ key ].players[ index ] notify( "destroy_hud_ent" );
+	}
+}
+
+destroy_all_hud_on_end_game()
+{
+	level waittill_either( "end_game", "game_ended" );
+	hud_keys = getArrayKeys( level.custom_objectives );
+	foreach ( name in hud_keys )
+	{
+		OBJ_REMOVE( name );
 	}
 }
 
