@@ -11,9 +11,21 @@ init()
 	level.health_indicators_thresholds[ "hurt" ] = 0.2;
 	level.health_indicators_thresholds[ "near_death" ] = 0.01;
 	level.health_indicators_thresholds[ "dead" ] = 0.0;
-	level.health_indicator_size = 2;
-	level.health_indicator_offset = ( 0, 0, 80 );
-	OBJ_ADD_NEW( "overhead_health_indicator", -1 );
+	level.waypoint_size = 2;
+	level.waypoint_height_offset = ( 0, 0, 80 );
+	level.location_pings_feature_enabled = getDvarIntDefault( "obj_player_waypoints_location_pings_enabled", 1 );
+	level.health_indicators_feature_enabled = getDvarIntDefault( "obj_player_waypoints_health_indicators_enabled", 1 );
+	level.location_pings_duration = 5;
+	if ( level.location_pings_feature_enabled )
+	{
+		OBJ_ADD_NEW( "location_pings", ::LOCATION_INDICATOR_UPDATE, -1 );
+	}
+	if ( level.health_indicators_feature_enabled )
+	{
+		OBJ_ADD_NEW( "overhead_health_indicator", ::HEALTH_INDICATOR_UPDATE, -1 );
+	}
+	level.location_pings_player_colors = array( ( 1, 1, 1 ), ( 0.49, 0.81, 0.93 ), ( 0.96, 0.79, 0.31 ), ( 0.51, 0.93, 0.53 ), ( 0.47, 0.34, 0.08 ), ( 0.24, 0.91, 0.93 ), ( 0.93, 0.24, 0.27 ), ( 0.97, 0.54, 0.06 ) );
+	level.location_pings_hud_index = 0;
 	level thread on_player_connect();
 	level thread destroy_all_hud_on_end_game();
 }
@@ -26,7 +38,11 @@ on_player_connect()
 	{
 		level waittill( "connected", player );
 		waittillframeend;
-		level.custom_objectives[ "overhead_health_indicator" ] HEALTH_INDICATOR_ADD_PLAYER( player, "all" );
+		hud_ref = player OBJ_ADD_PLAYER( "overhead_health_indicator", "all", true, 2, false );
+		if ( level.location_pings_feature_enabled )
+		{
+			player thread watch_for_location_ping();
+		}
 		player thread on_player_disconnect();
 	}
 }
@@ -53,7 +69,7 @@ destroy_all_hud_on_end_game()
 	}
 }
 
-OBJ_ADD_NEW( name, duration )
+OBJ_ADD_NEW( name, update_func, duration )
 {
 	if ( !isDefined( level.custom_objectives ) )
 	{
@@ -62,6 +78,7 @@ OBJ_ADD_NEW( name, duration )
 	if ( !isDefined( level.custom_objectives[ name ] ) )
 	{
 		level.custom_objectives[ name ] = spawnStruct();
+		level.custom_objectives[ name ].update_func = update_func;
 		level.custom_objectives[ name ] thread OBJ_DESTROY_THREAD( name, duration );
 	}
 }
@@ -84,11 +101,12 @@ OBJ_DESTROY_THREAD( name, duration )
 	{
 		self waittill( "destroy_hud" );
 	}
-	foreach ( player in self.players )
+	foreach ( elem in self.players )
 	{
-		self OBJ_REMOVE_PLAYER( player getGUID() );
+		elem OBJ_REMOVE_PLAYER();
 	}
 	self.players = undefined;
+	self.update_func = undefined;
 	arrayRemoveIndex( level.custom_objectives, name, true );
 }
 
@@ -110,13 +128,13 @@ OBJ_ALLOCATE_ENT( player )
 	return self.players.size;
 }
 
-HEALTH_INDICATOR_ADD_PLAYER( player, team )
+OBJ_ADD_PLAYER( obj_name, visible_to_team, link_to_player, base_size, use_constant_size )
 {
-	if ( !isDefined( self.players ) )
+	if ( !isDefined( level.custom_objectives[ obj_name ].players ) )
 	{
-		self.players = [];
+		level.custom_objectives[ obj_name ].players = [];
 	}
-	if ( team == "all" )
+	if ( visible_to_team == "all" )
 	{
 		elem_team = undefined;
 	}
@@ -124,38 +142,40 @@ HEALTH_INDICATOR_ADD_PLAYER( player, team )
 	{
 		elem_team = team;
 	}
-	index = self OBJ_ALLOCATE_ENT( player );
-	self.players[ index ] = OBJ_CREATE_SERVER_HEALTH_INDICATOR( elem_team );
-	self.players[ index ].guid = player getGUID();
-	self.players[ index ].target_ent = OBJ_SPAWN_ENT_ON_ENT( player, level.health_indicator_offset );
-	self.players[ index ].color = ( 0, 1, 0 );
-	self.players[ index ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
-	self.players[ index ] setWayPoint( false );
-	self.players[ index ] setTargetEnt( self.players[ index ].target_ent );
-	player thread HEALTH_INDICATOR_UPDATE( self.players[ index ] );
-	self thread OBJ_ENT_DEATH( player getGUID() );
+	index = level.custom_objectives[ obj_name ] OBJ_ALLOCATE_ENT( self );
+	level.custom_objectives[ obj_name ].players[ index ] = OBJ_CREATE_SERVER_WAYPOINT( elem_team );
+	level.custom_objectives[ obj_name ].players[ index ].guid = self getGUID();
+	level.custom_objectives[ obj_name ].players[ index ].target_ent = OBJ_SPAWN_ENT_ON_ENT( self, level.waypoint_height_offset, link_to_player );
+	level.custom_objectives[ obj_name ].players[ index ].color = ( 1, 1, 1 );
+	level.custom_objectives[ obj_name ].players[ index ] setShader( "white", base_size, base_size );
+	level.custom_objectives[ obj_name ].players[ index ] setWayPoint( is_true( use_constant_size ) );
+	level.custom_objectives[ obj_name ].players[ index ] setTargetEnt( level.custom_objectives[ obj_name ].players[ index ].target_ent );
+	self thread [[ level.custom_objectives[ obj_name ].update_func ]]( level.custom_objectives[ obj_name ].players[ index ] );
+	level.custom_objectives[ obj_name ].players[ index ] thread OBJ_ENT_DEATH( obj_name, index, self getGUID(), link_to_player );
+	return level.custom_objectives[ obj_name ].players[ index ];
 }
 
-OBJ_REMOVE_PLAYER( guid )
+OBJ_REMOVE_PLAYER()
 {
-	index = self OBJ_FIND_ENT_INDEX( guid );
-	self.players[ index ] notify( "destroy_hud_ent" );
+	self notify( "destroy_hud_ent" );
 }
 
-OBJ_ENT_DEATH( guid )
+OBJ_ENT_DEATH( obj_name, index, guid, link_to_player )
 {
-	index = self OBJ_FIND_ENT_INDEX( guid );
-	self.players[ index ] waittill( "destroy_hud_ent" );
-	self.players[ index ] setShader( "white", level.health_indicator_size, level.health_indicator_size );
-	self.players[ index ] clearTargetEnt();
-	self.players[ index ].guid = undefined;
-	self.players[ index ].target_ent unLink();
-	self.players[ index ].target_ent delete();
-	self.players[ index ] destroy();
-	arrayRemoveIndex( self.players, index );
+	self waittill( "destroy_hud_ent" );
+	self setShader( "white", level.waypoint_size, level.waypoint_size );
+	self clearTargetEnt();
+	self.guid = undefined;
+	if ( link_to_player )
+	{
+		self.target_ent unLink();
+	}
+	self.target_ent delete();
+	self destroy();
+	arrayRemoveIndex( level.custom_objectives[ obj_name ].players, index );
 }
 
-OBJ_SPAWN_ENT_ON_ENT( ent, offset )
+OBJ_SPAWN_ENT_ON_ENT( ent, offset, link )
 {
 	if ( !isDefined( offset ) )
 	{
@@ -163,11 +183,14 @@ OBJ_SPAWN_ENT_ON_ENT( ent, offset )
 	}
 	elem_ent = spawn( "script_model", ent.origin + offset );
 	elem_ent setModel( "script_origin" );
-	elem_ent linkTo( ent );
+	if ( is_true( link ) )
+	{
+		elem_ent linkTo( ent );
+	}
 	return elem_ent;
 }
 
-OBJ_CREATE_SERVER_HEALTH_INDICATOR( team )
+OBJ_CREATE_SERVER_WAYPOINT( team )
 {
 	if ( isDefined( team ) )
 	{
@@ -182,7 +205,7 @@ OBJ_CREATE_SERVER_HEALTH_INDICATOR( team )
 	barelembg.y = 0;
 	barelembg.xoffset = 0;
 	barelembg.yoffset = 0;
-	barelembg.alpha = 1;
+	barelembg.alpha = 0;
 	barelembg.hidden = 0;
 	return barelembg;
 }
@@ -306,4 +329,66 @@ player_is_in_laststand()
 		return 1;
 	}
 	return 0;
+}
+
+LOCATION_INDICATOR_UPDATE( location_elem )
+{
+	location_elem.alpha = 1;
+	location_elem.color = level.location_pings_player_colors[ self getEntityNumber() ];
+	for ( i = level.location_pings_duration; i > 0; i-- )
+	{
+		wait 1;
+	}
+	location_elem OBJ_REMOVE_PLAYER();
+	self.has_ping_location = false;
+}
+
+watch_for_location_ping()
+{
+	level endon( "end_game" );
+	level endon( "game_ended" );
+	self endon( "disconnect" );
+	self.has_ping_location = false;
+	while ( true )
+	{
+		if ( self.sessionState != "playing" )
+		{
+			wait 1;
+			continue;
+		}
+		if ( self.has_ping_location )
+		{
+			wait 1;
+			continue;
+		}
+		if ( self meleeButtonPressed() && self.sessionState == "playing" )
+		{
+			self thread watch_melee_button();
+			self waittill_any_timeout( 3, "melee_button_up" );
+			self notify( "watch_melee_button_end" );
+			if ( self meleeButtonPressed() && self.sessionState == "playing" )
+			{
+				hud_ref = self OBJ_ADD_PLAYER( "location_pings", "all", false, 2, true );
+				self.has_ping_location = true;
+			}
+		}
+		wait 0.05;
+	}
+}
+
+watch_melee_button()
+{
+	level endon( "end_game" );
+	level endon( "game_ended" );
+	self endon( "disconnect" );
+	self endon( "watch_melee_button_end" );
+	while ( true )
+	{
+		if ( !self meleeButtonPressed() )
+		{
+			self notify( "melee_button_up" );
+			return;
+		}
+		wait 0.05;
+	}
 }
