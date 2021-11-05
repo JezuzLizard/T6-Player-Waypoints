@@ -128,7 +128,7 @@ OBJ_ALLOCATE_ENT( player )
 	return self.players.size;
 }
 
-OBJ_ADD_PLAYER( obj_name, visible_to_team, link_to_player, base_size, use_constant_size )
+OBJ_ADD_PLAYER( obj_name, visible_to_team, link_to_player, base_size, use_constant_size, offscreen_shader )
 {
 	if ( !isDefined( level.custom_objectives[ obj_name ].players ) )
 	{
@@ -148,7 +148,14 @@ OBJ_ADD_PLAYER( obj_name, visible_to_team, link_to_player, base_size, use_consta
 	level.custom_objectives[ obj_name ].players[ index ].target_ent = OBJ_SPAWN_ENT_ON_ENT( self, level.waypoint_height_offset, link_to_player );
 	level.custom_objectives[ obj_name ].players[ index ].color = ( 1, 1, 1 );
 	level.custom_objectives[ obj_name ].players[ index ] setShader( "white", base_size, base_size );
-	level.custom_objectives[ obj_name ].players[ index ] setWayPoint( is_true( use_constant_size ) );
+	if ( isDefined( offscreen_shader ) )
+	{
+		level.custom_objectives[ obj_name ].players[ index ] setWayPoint( is_true( use_constant_size ), offscreen_shader );
+	}
+	else 
+	{
+		level.custom_objectives[ obj_name ].players[ index ] setWayPoint( is_true( use_constant_size ) );
+	}
 	level.custom_objectives[ obj_name ].players[ index ] setTargetEnt( level.custom_objectives[ obj_name ].players[ index ].target_ent );
 	self thread [[ level.custom_objectives[ obj_name ].update_func ]]( level.custom_objectives[ obj_name ].players[ index ] );
 	level.custom_objectives[ obj_name ].players[ index ] thread OBJ_ENT_DEATH( obj_name, index, self getGUID(), link_to_player );
@@ -368,7 +375,7 @@ watch_for_location_ping()
 			self notify( "watch_melee_button_end" );
 			if ( self meleeButtonPressed() && self.sessionState == "playing" )
 			{
-				hud_ref = self OBJ_ADD_PLAYER( "location_pings", "all", false, 2, true );
+				hud_ref = self OBJ_ADD_PLAYER( "location_pings", "all", false, 2, true, "white" );
 				self.has_ping_location = true;
 			}
 		}
