@@ -13,16 +13,17 @@ init()
 	level.health_indicators_thresholds[ "dead" ] = 0.0;
 	level.waypoint_size = 2;
 	level.waypoint_height_offset = ( 0, 0, 80 );
-	level.location_pings_feature_enabled = getDvarIntDefault( "obj_player_waypoints_location_pings_enabled", 1 );
+	level.location_pings_feature_enabled = getDvarIntDefault( "obj_player_waypoints_location_pings_enabled", 0 );
 	level.health_indicators_feature_enabled = getDvarIntDefault( "obj_player_waypoints_health_indicators_enabled", 1 );
+	level.health_indicators_show_on_full_health = getDvarIntDefault( "obj_player_waypoints_health_indicators_show_on_full_health", 0 );
 	level.location_pings_duration = 5;
 	if ( level.location_pings_feature_enabled )
 	{
-		OBJ_ADD_NEW( "location_pings", ::LOCATION_INDICATOR_UPDATE, -1 );
+		OBJ_ADD_NEW( "location_pings", ::LOCATION_INDICATOR_UPDATE );
 	}
 	if ( level.health_indicators_feature_enabled )
 	{
-		OBJ_ADD_NEW( "overhead_health_indicator", ::HEALTH_INDICATOR_UPDATE, -1 );
+		OBJ_ADD_NEW( "overhead_health_indicator", ::HEALTH_INDICATOR_UPDATE );
 	}
 	level.location_pings_player_colors = array( ( 1, 1, 1 ), ( 0.49, 0.81, 0.93 ), ( 0.96, 0.79, 0.31 ), ( 0.51, 0.93, 0.53 ), ( 0.47, 0.34, 0.08 ), ( 0.24, 0.91, 0.93 ), ( 0.93, 0.24, 0.27 ), ( 0.97, 0.54, 0.06 ) );
 	level.location_pings_hud_index = 0;
@@ -38,7 +39,11 @@ on_player_connect()
 	{
 		level waittill( "connected", player );
 		waittillframeend;
-		hud_ref = player OBJ_ADD_PLAYER( "overhead_health_indicator", "all", true, 2, false );
+		wait 1;
+		if ( level.health_indicators_feature_enabled )
+		{
+			hud_ref = player OBJ_ADD_PLAYER( "overhead_health_indicator", "all", true, 2, false );
+		}
 		if ( level.location_pings_feature_enabled )
 		{
 			player thread watch_for_location_ping();
@@ -69,7 +74,7 @@ destroy_all_hud_on_end_game()
 	}
 }
 
-OBJ_ADD_NEW( name, update_func, duration )
+OBJ_ADD_NEW( name, update_func )
 {
 	if ( !isDefined( level.custom_objectives ) )
 	{
@@ -79,28 +84,18 @@ OBJ_ADD_NEW( name, update_func, duration )
 	{
 		level.custom_objectives[ name ] = spawnStruct();
 		level.custom_objectives[ name ].update_func = update_func;
-		level.custom_objectives[ name ] thread OBJ_DESTROY_THREAD( name, duration );
+		level.custom_objectives[ name ] thread OBJ_DESTROY_THREAD( name );
 	}
 }
 
 OBJ_REMOVE( name )
 {
-	if ( isDefined( level.custom_objectives[ name ] ) )
-	{
-		level.custom_objectives[ name ] notify( "destroy_hud" );
-	}
+	level.custom_objectives[ name ] notify( "destroy_hud" );
 }
 
-OBJ_DESTROY_THREAD( name, duration )
+OBJ_DESTROY_THREAD( name )
 {
-	if ( duration != -1 )
-	{
-		self waittill_any_timeout( duration, "destroy_hud" );
-	}
-	else
-	{
-		self waittill( "destroy_hud" );
-	}
+	self waittill( "destroy_hud" );
 	foreach ( elem in self.players )
 	{
 		elem OBJ_REMOVE_PLAYER();
@@ -159,11 +154,27 @@ OBJ_ADD_PLAYER( obj_name, visible_to_team, link_to_player, base_size, use_consta
 	level.custom_objectives[ obj_name ].players[ index ] setTargetEnt( level.custom_objectives[ obj_name ].players[ index ].target_ent );
 	self thread [[ level.custom_objectives[ obj_name ].update_func ]]( level.custom_objectives[ obj_name ].players[ index ] );
 	level.custom_objectives[ obj_name ].players[ index ] thread OBJ_ENT_DEATH( obj_name, index, self getGUID(), link_to_player );
+	level.custom_objectives[ obj_name ].players[ index ] thread OBJ_REMOVE_FAILSAFE( self );
 	return level.custom_objectives[ obj_name ].players[ index ];
 }
 
 OBJ_REMOVE_PLAYER()
 {
+	self notify( "destroy_hud_ent" );
+}
+
+OBJ_REMOVE_FAILSAFE( player )
+{
+	level endon( "end_game" );
+	level endon( "game_ended" );
+	while ( true )
+	{
+		if ( !isInArray( level.players, player ) )
+		{
+			break;
+		}
+		wait 1;
+	}
 	self notify( "destroy_hud_ent" );
 }
 
@@ -274,6 +285,10 @@ set_color_from_health_fraction( frac )
 	{
 		green_frac = ceil( ( 255 / 320 ) * 100 ) / 100;
 		self.color = ( 0, green_frac, 0 );
+		if ( !level.health_indicators_show_on_full_health )
+		{
+			self.alpha = 0;
+		}
 	}
 }
 
