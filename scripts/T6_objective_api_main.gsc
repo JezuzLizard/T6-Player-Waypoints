@@ -38,17 +38,21 @@ on_player_connect()
 	for(;;)
 	{
 		level waittill( "connected", player );
-		waittillframeend;
-		wait 1;
-		if ( level.health_indicators_feature_enabled )
-		{
-			hud_ref = player OBJ_ADD_PLAYER( "overhead_health_indicator", "all", true, 2, false );
-		}
-		if ( level.location_pings_feature_enabled )
-		{
-			player thread watch_for_location_ping();
-		}
+		player thread on_player_spawned();
 		player thread on_player_disconnect();
+	}
+}
+
+on_player_spawned()
+{
+	self waittill( "spawned_player" ); //No loop; we only want to do it on the first spawn.
+	if ( level.health_indicators_feature_enabled )
+	{
+		hud_ref = self OBJ_ADD_PLAYER( "overhead_health_indicator", "all", true, 2, false );
+	}
+	if ( level.location_pings_feature_enabled )
+	{
+		player thread watch_for_location_ping();
 	}
 }
 
@@ -102,7 +106,8 @@ OBJ_DESTROY_THREAD( name )
 	}
 	self.players = undefined;
 	self.update_func = undefined;
-	arrayRemoveIndex( level.custom_objectives, name, true );
+	level.custom_objectives[ name ] = undefined;
+	arrayRemoveValue( level.custom_objectives, undefined );
 }
 
 OBJ_FIND_ENT_INDEX( guid )
@@ -167,6 +172,8 @@ OBJ_REMOVE_FAILSAFE( player )
 {
 	level endon( "end_game" );
 	level endon( "game_ended" );
+	player endon( "disconnect" );
+	self endon( "destroy_hud_ent" );
 	while ( true )
 	{
 		if ( !isInArray( level.players, player ) )
